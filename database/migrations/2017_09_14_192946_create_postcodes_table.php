@@ -17,10 +17,10 @@ class CreatePostcodesTable extends Migration
         {
             $table->increments('id');
 
-            $table->string('hash')->index('idx_postcodes_hash');
+            $table->string('hash')->unique('idx_postcodes_hash');
 
             //Unit postcode – 7 character version
-            $table->string('pcd', 7)->index('idx_postcodes_postcode');
+            $table->string('pcd', 7)->unique('idx_postcodes_postcode');
 
             //Unit postcode – 8 character version
             $table->string('pcd2', 8);
