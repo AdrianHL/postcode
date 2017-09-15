@@ -2,7 +2,12 @@
 
 namespace App\Console\Commands;
 
+use App\Postcode;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use SplFileObject;
+use Symfony\Component\Finder\SplFileInfo;
 
 class ImportPostcodes extends Command
 {
@@ -71,10 +76,10 @@ class ImportPostcodes extends Command
         $this->info('Unzipping Postcodes...');
 
         //ToDo - Unzip only the Data folder (excluding the User Guide and Documents)
-        //ToDo - The Extract Path should include a checksum/hash to make sure that the content is correct
+        $targetPath = $file = $this->storagePath . 'data';
         $unzippedFile = unzipFile(
             $file,
-            $targetPath = $file = $this->storagePath . 'data'
+            $targetPath
         );
 
         if (!$unzippedFile) {
@@ -84,16 +89,102 @@ class ImportPostcodes extends Command
 
         $this->info('Importing Postcodes...');
 
-        //ToDo - Import data from the individual csv files to the database
+        //Get all the individual csv files
+        $individualFilesPath = $targetPath . DIRECTORY_SEPARATOR . 'Data' . DIRECTORY_SEPARATOR . 'multi_csv';
+        $files = File::allFiles($individualFilesPath);
 
-        //ToDo - Create Model(s) and Data Migration(s). Potential hash to avoid checking non updated data
+        if (empty($files)) {
+            $this->error('There were no individual files to process.');
+            return false;
 
-        //ToDo - Show a progress bar and advance per file imported
+            //ToDo - Try to use the global file
+        }
 
-            //ToDo - Use a create or update based on a primary key (and maybe a hash column) - storage/postcodes-import/data/User Guide/ONSPD User Guide May 2017.pdf, page 33
+        $progressBar = $this->output->createProgressBar(count($files));
+        $postcodes = 0;
+        foreach ($files as $file) {
+            $fileData = $this->extractPostcodeFileData($file);
 
+            $filePostcodes = 0;
+            if (count($fileData)) {
+                $this->info(sprintf('Processing file %s ...', $file->getFileName()));
+                $filePostcodes = $this->processPostcodeData($fileData);
+            }
+
+            $postcodes += $filePostcodes;
+
+            $this->info(sprintf(PHP_EOL . 'The file %s contained information for %s postcodes.', $file->getFileName(), $filePostcodes));
+
+            $progressBar->advance();
+        }
+
+        $progressBar->finish();
 
         $this->info('Downloaded and Imported UK Postcodes. The postcodes data is now ready to be consumed!');
+
+        return true;
     }
 
+    /**
+     * Process the Postcode data
+     *
+     * @param array $data
+     * @return int Amount of processed postcodes
+     */
+    protected function processPostcodeData(array $data) : int
+    {
+        $postcodes = 0;
+
+        //Transaction ... to speed up writes in SQLite!
+        DB::transaction(function () use ($data, &$postcodes)
+        {
+            $progressBar = $this->output->createProgressBar(count($data));
+            foreach ($data as $dataRow) {
+                //ToDo - Use the hash to create a new row if the previous one has been updated , if so a soft delete approach will be required to delete the older one later
+                Postcode::updateOrCreate([
+                    'pcd' => $dataRow['pcd']
+                ], $dataRow);
+                $postcodes++;
+                $progressBar->advance();
+            }
+            $progressBar->finish();
+        });
+
+        return $postcodes;
+    }
+
+    /**
+     * Extract the Postcode data from a CSV file
+     *
+     * @param SplFileInfo $file
+     * @return array
+     */
+    protected function extractPostcodeFileData(SplFileInfo $file) : array
+    {
+        $fileObject = new SplFileObject($file);
+        $fileObject->setFlags(SplFileObject::DROP_NEW_LINE);
+        $fileObject->setFlags(SplFileObject::SKIP_EMPTY);
+        $fileData = [];
+        $firstLine = true;
+
+        while (!$fileObject->eof())
+        {
+            if ($firstLine) {
+                $header = $fileObject->fgetcsv();
+                $firstLine = false;
+                continue;
+            }
+
+            $dataRow = $fileObject->fgetcsv();
+
+            if (count($header) != count($dataRow)) {
+                \Log::warning(sprintf('There is a data row in the file %s that do not contain the same number of fields than the header and it has been excluded.', $file->getFileName()), ['data' => $dataRow]);
+                continue;
+            }
+
+            $fileData[] = array_combine($header, $dataRow);
+        }
+
+        return $fileData;
+    }
 }
