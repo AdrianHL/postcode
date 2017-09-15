@@ -11,14 +11,16 @@ class PostcodeModelTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * Create a Postcode
-     *
-     * @test
+     * @var array Test Data
      */
-    public function create()
+    protected $testData;
+
+    public function setUp()
     {
+        parent::setUp();
+
         //ToDo - Ideally this would be based on a factory
-        $postcodeData = [
+        $this->testData = [
             'pcd'       => "AB1 0AA",
             'pcd2'      => "AB1  0AA",
             'pcds'      => "AB1 0AA",
@@ -77,11 +79,42 @@ class PostcodeModelTest extends TestCase
             'pfa'       => "S23000009",
             'imd'       => 6808
         ];
+    }
 
-        $postcode = Postcode::create($postcodeData);
+    /**
+     * Create a Postcode
+     *
+     * @test
+     */
+    public function create_a_postcode()
+    {
+        $postcode = Postcode::create($this->testData);
 
         $this->assertInstanceOf(Postcode::class, $postcode);
 
-        $this->assertEquals(sha1(json_encode($postcodeData, true)), $postcode->hash);
+        $this->assertEquals(sha1(json_encode($this->testData, true)), $postcode->fresh()->hash);
+    }
+
+    /**
+     * Update a Postcode
+     *
+     * @test
+     */
+    public function update_a_postcode()
+    {
+        $postcode = Postcode::create($this->testData);
+
+        $postCodeHash = $postcode->fresh()->hash;
+
+        $updateData = [
+            'imd' => 6888
+        ];
+
+        $postCodeUpdatedData = array_merge($this->testData, $updateData);
+
+        $postcode->update($updateData);
+
+        $this->assertEquals(sha1(json_encode($postCodeUpdatedData, true)), $postcode->fresh()->hash);
+        $this->assertNotEquals($postCodeHash, $postcode->fresh()->hash);
     }
 }
