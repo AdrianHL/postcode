@@ -73,5 +73,9 @@ class Postcode extends Model
         return ($this->hashAlgo)(json_encode($data, true));
     }
 
+    public function scopeWherePostcode($query, $pcd)
+    {
+        return $query->where('pcd', 'LIKE', "%{$pcd}%");
+    }
 
 }
