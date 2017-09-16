@@ -26,7 +26,7 @@ The endpoint */api/postcodes/{partialSearch}* accepts a string in partialSearch
  
 This endpoint gives a paginated result of postcodes partially matching by postcode (pcd).
 
-Example *api/postcodes/BH11A*
+Example */api/postcodes/BH11A*
 
 
 **Latitude and Longitude**
