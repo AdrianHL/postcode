@@ -91,8 +91,6 @@ class PostcodeModelTest extends TestCase
         $postcode = Postcode::create($this->testData);
 
         $this->assertInstanceOf(Postcode::class, $postcode);
-
-        $this->assertEquals(sha1(json_encode($this->testData, true)), $postcode->fresh()->hash);
     }
 
     /**
@@ -104,17 +102,12 @@ class PostcodeModelTest extends TestCase
     {
         $postcode = Postcode::create($this->testData);
 
-        $postCodeHash = $postcode->fresh()->hash;
-
         $updateData = [
             'imd' => 6888
         ];
 
-        $postCodeUpdatedData = array_merge($this->testData, $updateData);
-
         $postcode->update($updateData);
 
-        $this->assertEquals(sha1(json_encode($postCodeUpdatedData, true)), $postcode->fresh()->hash);
-        $this->assertNotEquals($postCodeHash, $postcode->fresh()->hash);
+        $this->assertEquals($updateData['imd'], $postcode->fresh()->imd);
     }
 }
