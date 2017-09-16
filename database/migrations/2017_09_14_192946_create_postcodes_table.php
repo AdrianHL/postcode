@@ -21,7 +21,7 @@ class CreatePostcodesTable extends Migration
             $table->string('pcd', 7)->unique('idx_postcodes_postcode');
 
             //Unit postcode – 8 character version
-            $table->string('pcd2', 8)->unique('idx_postcodes_postcode2');;
+            $table->string('pcd2', 8);
 
             //Unit postcode - variable length (e-Gif) version
             $table->string('pcds', 8);
@@ -171,10 +171,16 @@ class CreatePostcodesTable extends Migration
             $table->string('oac11', 3)->nullable();
 
             //Decimal degrees latitude
-            $table->point('lat');
+            $table->float('lat', 10, 6);
 
             //Decimal degrees longitude
-            $table->point('long');
+            $table->float('long', 10, 6);
+
+            //Used for calculations
+            $table->float('cos_lat', 10, 6);
+            $table->float('cos_long', 10, 6);
+            $table->float('sin_lat', 10, 6);
+            $table->float('sin_long', 10, 6);
 
             //Local Enterprise Partnership (LEP) - first instance
             $table->string('lep1', 9)->nullable();
