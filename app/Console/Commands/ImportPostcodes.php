@@ -16,7 +16,9 @@ class ImportPostcodes extends Command
      *
      * @var string
      */
-    protected $signature = 'import:postcodes';
+    protected $signature = 'import:postcodes
+                            {--no-download} 
+                            {--no-unzip}';
 
     /**
      * The console command description.
@@ -57,39 +59,44 @@ class ImportPostcodes extends Command
 
         $this->info('Starting Download and Import UK Postcodes...');
 
-        $this->info('Downloading Postcodes...');
+        if (!$this->option('no-download'))
+        {
+            $this->info('Downloading Postcodes Data ... This may take a few seconds.');
 
-        $file = $this->storagePath . 'download.zip';
+            $file = $this->storagePath . 'download.zip';
 
-        //ToDo - The file is always downloaded but it could be possible to download and verify a piece to know if it has been updated since the last time download
-        //ToDo - Maybe an option in the command to do not download the fle and use existing one?
-        $downloadedFile = downloadFile(
-            $downloadUrl = config('postcodes.download_url'),
-            $file
-        );
+            //ToDo - The file is always downloaded but it could be possible to download and verify a piece to know if it has been updated since the last time download
+            $downloadedFile =  downloadFile(
+                $downloadUrl = config('postcodes.download_url'),
+                $file
+            );
 
-        if (!$downloadedFile) {
-            $this->error('It was not possible to download the Postcodes file. Please check the log for more info.');
-            return false;
+            if (!$downloadedFile) {
+                $this->error('It was not possible to download the Postcodes file. Please check the log for more info.');
+                return false;
+            }
         }
 
-        $this->info('Unzipping Postcodes...');
+        $targetPath = $this->storagePath . 'data';
 
-        //ToDo - Unzip only the Data folder (excluding the User Guide and Documents)
-        $targetPath = $file = $this->storagePath . 'data';
-        $unzippedFile = unzipFile(
-            $file,
-            $targetPath
-        );
+        if (!$this->option('no-unzip'))
+        {
+            $this->info('Unzipping Postcodes ... This may take a few seconds.');
 
-        if (!$unzippedFile) {
-            $this->error('It was not possible to unzip the Postcodes zip file. Please check the log for more info.');
-            return false;
+            //ToDo - Unzip only the Data folder (excluding the User Guide and Documents)
+            $unzippedFile = unzipFile(
+                $file,
+                $targetPath
+            );
+
+            if (!$unzippedFile) {
+                $this->error('It was not possible to unzip the Postcodes zip file. Please check the log for more info.');
+                return false;
+            }
         }
 
-        $this->info('Importing Postcodes...');
+        $this->info('Importing Postcodes ... This is going to take some minutes to complete.');
 
-        //Get all the individual csv files
         $individualFilesPath = $targetPath . DIRECTORY_SEPARATOR . 'Data' . DIRECTORY_SEPARATOR . 'multi_csv';
         $files = File::allFiles($individualFilesPath);
 
@@ -102,25 +109,26 @@ class ImportPostcodes extends Command
 
         $progressBar = $this->output->createProgressBar(count($files));
         $postcodes = 0;
-        foreach ($files as $file) {
+        foreach ($files as $file)
+        {
             $fileData = $this->extractPostcodeFileData($file);
 
             $filePostcodes = 0;
             if (count($fileData)) {
-                $this->info(sprintf('Processing file %s ...', $file->getFileName()));
+                $this->info(sprintf(PHP_EOL . 'Processing file %s ...', $file->getFileName()));
                 $filePostcodes = $this->processPostcodeData($fileData);
             }
 
             $postcodes += $filePostcodes;
 
-            $this->info(sprintf(PHP_EOL . 'The file %s contained information for %s postcodes.', $file->getFileName(), $filePostcodes));
+            $this->info(sprintf(PHP_EOL . PHP_EOL . 'The file %s contained information for %s postcodes.' . PHP_EOL, $file->getFileName(), $filePostcodes));
 
             $progressBar->advance();
         }
 
         $progressBar->finish();
 
-        $this->info('Downloaded and Imported UK Postcodes. The postcodes data is now ready to be consumed!');
+        $this->info(PHP_EOL . PHP_EOL . 'Downloaded and Imported UK Postcodes. The postcodes data is now ready to be consumed!');
 
         return true;
     }
