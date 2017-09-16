@@ -17,5 +17,6 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
 
+Route::get('/postcodes/search', 'PostcodeController@search');
 Route::get('/postcode/{id}', 'PostcodeController@show');
 Route::get('/postcodes/{pcd}', 'PostcodeController@index');
