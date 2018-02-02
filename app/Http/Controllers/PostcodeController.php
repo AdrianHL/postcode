@@ -10,13 +10,26 @@ use App\Exceptions\PostcodeNotFound;
 
 class PostcodeController extends Controller
 {
-    public function index($pcd)
+    /**
+     * Search postcodes by partial match
+     *
+     * @param string $pcd
+     * @return PostcodeResourceCollection
+     */
+    public function index(string $pcd)
     {
         $postcodes = Postcode::wherePostcode($pcd)->paginate();
         return new PostcodeResourceCollection($postcodes);
     }
 
-    public function show($id)
+    /**
+     * Find postcode by ID
+     *
+     * @param string $id
+     * @return PostcodeResource
+     * @throws PostcodeNotFound
+     */
+    public function show(string $id)
     {
         $postcode = Postcode::find($id);
 
@@ -27,6 +40,12 @@ class PostcodeController extends Controller
         return new PostcodeResource($postcode);
     }
 
+    /**
+     * Search postcodes by LAT and LONG within a maximum distance (default to 0.25)
+     *
+     * @param SearchPostcodeRequest $request
+     * @return PostcodeResourceCollection
+     */
     public function search(SearchPostcodeRequest $request)
     {
         $postcodes = Postcode::whereClosest(

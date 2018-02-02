@@ -7,7 +7,11 @@ use Illuminate\Support\Facades\DB;
 
 class Postcode extends Model
 {
-
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
     protected $table = 'postcodes';
 
     /**
@@ -31,6 +35,7 @@ class Postcode extends Model
     {
         $hashField = 'hash';
 
+        //On create and update recalculate the geo-spatial fields
         static::creating(function ($model) use ($hashField) {
             $model->calculateSpatialFields();
         });
@@ -41,21 +46,40 @@ class Postcode extends Model
         parent::boot();
     }
 
+    /**
+     * Calculate spatial fields used in sqlite to replace the MySQL geo-spatial functions
+     */
     public function calculateSpatialFields()
     {
         $this->cos_lat  = cos(pi() * $this->lat  / 180);
-        $this->cos_long = cos(pi()* $this->long  / 180);
+        $this->cos_long = cos(pi() * $this->long  / 180);
         $this->sin_lat  = sin(pi() * $this->lat  / 180);
         $this->sin_long = sin(pi() * $this->long / 180);
     }
 
-    public function scopeWherePostcode($query, $pcd)
+    /**
+     * Search by partial postcode
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string $pcd
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeWherePostcode(\Illuminate\Database\Eloquent\Builder $query, string $pcd)
     {
         $searchPCD = trim($pcd);
         return $query->where('pcd', 'LIKE', "%{$searchPCD}%")->orWhereRaw("replace(pcd, ' ', '')  LIKE '%{$searchPCD}%'");
     }
 
-    public function scopeWhereClosest($query, $lat, $long, $distance = 20)
+    /**
+     * Search by LAT and LONG within a maximum distance
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param $lat
+     * @param $long
+     * @param int $distance
+     * @return $this
+     */
+    public function scopeWhereClosest(\Illuminate\Database\Eloquent\Builder $query, $lat, $long, $distance = 20)
     {
         $cosLat  = cos($lat * pi() / 180);
         $sinLat  = sin($lat * pi() / 180) ;
@@ -69,12 +93,20 @@ class Postcode extends Model
         ])->whereRaw("$sinLat * sin_lat + $cosLat * cos_lat * (cos_long * $cosLong + sin_long * $sinLong) > $cosDistance")->orderBy('distance', 'desc');
     }
 
-    public function scopeWhereClosestDistance($query, $lat, $long, $distance = 20)
+    /**
+     * Search by LAT and LONG within a maximum distance using MySQL DISTANCE function
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param $lat
+     * @param $long
+     * @param int $distance
+     * @return mixed
+     */
+    public function scopeWhereClosestDistance(\Illuminate\Database\Eloquent\Builder $query, $lat, $long, $distance = 20)
     {
         return $query->select([
             '*',
             DB::raw("DISTANCE(lat, long, $lat, $long) AS distance")
         ])->where("distance <= $distance")->orderBy('distance');
     }
-
 }
